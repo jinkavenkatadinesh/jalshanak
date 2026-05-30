@@ -1,0 +1,70 @@
+name: Production Docker CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  # Job 1: Compilation Checks and Validation Tests
+  test-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+    
+    # Verify Backend Syntax & Imports integrity
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install backend packages
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        python -c "import app.main"
+
+    # Verify Frontend React JSX compiles cleanly
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Install frontend packages & compile Vite
+      run: |
+        cd frontend
+        npm install
+        npm run build
+
+  # Job 2: Automate live remote deployment to your Virtual Machine
+  deploy-to-vps:
+    needs: test-and-validate
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # Deploy securely to VPS via SSH
+    - name: SSH Remote Commands Execution
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.VPS_IP_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          # 1. Navigate to deployment workspace
+          cd /var/www/jalrakshak
+          
+          # 2. Pull the latest commits from your GitHub repository
+          git pull origin main
+          
+          # 3. Re-compile Frontend React Static Assets
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+          
+          # 4. Rebuild and restart Docker containers seamlessly in the background
+          docker-compose -f docker-compose.prod.yml up -d --build
+          
+          # 5. Clean up unused dangling Docker caches to preserve server space
+          docker system prune -f

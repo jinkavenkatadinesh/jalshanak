@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # 1. High-Performance PostgreSQL Service
+  db:
+    image: postgres:15-alpine
+    container_name: jalrakshak_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SecureProductionPass123}
+      POSTGRES_DB: jalrakshak_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_prod_data:/var/lib/postgresql/data
+      - pg_prod_backups:/backups
+
+  # 2. FastAPI Production Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jalrakshak_backend_prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-SecureProductionPass123}@db:5432/jalrakshak_db
+      - SECRET_KEY=${SECRET_KEY:-e8fcae741c888d227bdebe5e9bf72382c478aef9f3a9e3d93bfb1234}
+      - ALGORITHM=HS256
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - shared_uploads:/app/uploads
+    depends_on:
+      - db
+
+  # 3. Unified Nginx Reverse Proxy Gateway (Serving React & Proxying API)
+  web_gateway:
+    image: nginx:alpine
+    container_name: jalrakshak_nginx_prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - shared_uploads:/usr/share/nginx/html/uploads:ro
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      - backend
+
+volumes:
+  pg_prod_data:
+  pg_prod_backups:
+  shared_uploads:
+  certbot_certs:
+  certbot_www:
