@@ -19,7 +19,7 @@ jobs:
         python-version: '3.10'
     - name: Install backend packages
       env:
-        PYTHONPATH: .
+        PYTHONPATH: backend
       run: |
         cd backend
         pip install -r requirements.txt
