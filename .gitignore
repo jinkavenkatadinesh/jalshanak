@@ -1,0 +1,36 @@
+# =========================================================================
+# JALRAKSHAK ROOT GITIGNORE FILE
+# =========================================================================
+
+# --- Python / FastAPI Backend ignores ---
+backend/venv/
+backend/env/
+backend/ENV/
+backend/__pycache__/
+backend/*/__pycache__/
+backend/*/*/__pycache__/
+backend/.pytest_cache/
+backend/jalrakshak.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# --- Node / React Frontend ignores ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.vite/
+
+# --- Environment & Configuration files ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# --- OS / Sandbox files ---
+.DS_Store
+Thumbs.db
+*.log
+*task*.log
