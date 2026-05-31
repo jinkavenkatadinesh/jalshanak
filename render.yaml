@@ -19,12 +19,12 @@ services:
         generateValue: true
 
   # 2. React (Vite) Frontend Static Site
-  - type: static
+  - type: web
     name: jalrakshak-frontend
-    env: node
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_BASE_URL
         fromService:
