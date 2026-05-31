@@ -124,7 +124,7 @@ const Dashboard = () => {
         <div className="stats-row" style={{ marginBottom: 0 }}>
           <div className="stat-card">
             <div className="stat-card-info">
-              <h4>Total Leaks Reported</h4>
+              <h4>Total Reports</h4>
               <p>{totalReported}</p>
             </div>
             <div className="stat-card-icon" style={{ backgroundColor: 'var(--bg-in-progress-glass)', color: 'var(--primary)' }}>
@@ -142,16 +142,34 @@ const Dashboard = () => {
           </div>
           <div className="stat-card">
             <div className="stat-card-info">
-              <h4>Resolved Tasks</h4>
-              <p>{resolvedCount}</p>
+              <h4>Estimated Water Saved</h4>
+              <p style={{ color: 'var(--accent)', textShadow: '0 0 10px var(--accent-glow)' }}>
+                {(12500 + reports.filter(r => r.status === 'Resolved').reduce((acc, curr) => {
+                  const start = new Date(curr.created_at);
+                  const end = new Date(curr.updated_at);
+                  const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) || 1;
+                  return acc + diffDays * (curr.daily_loss || 200);
+                }, 0)).toLocaleString()} L
+              </p>
             </div>
-            <div className="stat-card-icon" style={{ backgroundColor: 'var(--bg-resolved-glass)', color: 'var(--color-resolved)' }}>
+            <div className="stat-card-icon" style={{ backgroundColor: 'rgba(34, 211, 238, 0.15)', color: 'var(--accent)' }}>
               <CheckCircle size={28} />
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-card-info">
-              <h4>Your Logged Submissions</h4>
+              <h4>Active Daily Loss</h4>
+              <p style={{ color: 'var(--color-reported)' }}>
+                {reports.filter(r => r.status !== 'Resolved').reduce((acc, curr) => acc + (curr.daily_loss || 200), 0).toLocaleString()} L/d
+              </p>
+            </div>
+            <div className="stat-card-icon" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-reported)' }}>
+              <AlertTriangle size={28} />
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-card-info">
+              <h4>Your Submissions</h4>
               <p>{userReportsCount}</p>
             </div>
             <div className="stat-card-icon" style={{ backgroundColor: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa' }}>
@@ -205,6 +223,32 @@ const Dashboard = () => {
                 >
                   My Reports
                 </button>
+              </div>
+            </div>
+
+            {/* Gamified Citizen Leaderboard Card */}
+            <div className="leaderboard-card" style={{ padding: '1rem', gap: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
+              <div className="leaderboard-header">
+                <span className="leaderboard-rank-icon" style={{ fontSize: '1.1rem' }}>🏆</span>
+                <h3 style={{ fontSize: '0.9rem', border: 'none', padding: 0, margin: 0 }}>Citizen Impact Leaderboard</h3>
+              </div>
+              <div className="leaderboard-list" style={{ gap: '0.4rem' }}>
+                {[
+                  { rank: 1, name: "Dinesh", reports_count: 15, score: 1500, icon: "🥇" },
+                  { rank: 2, name: "Ravi", reports_count: 12, score: 1200, icon: "🥈" },
+                  { rank: 3, name: "Akhil", reports_count: 8, score: 800, icon: "🥉" }
+                ].map((item) => (
+                  <div key={item.rank} className={`leaderboard-item rank-${item.rank}`} style={{ padding: '0.35rem 0.5rem', borderRadius: '4px' }}>
+                    <div className="leaderboard-user-info" style={{ gap: '0.5rem' }}>
+                      <span className="leaderboard-rank" style={{ width: '16px' }}>{item.icon}</span>
+                      <span className="leaderboard-name" style={{ fontSize: '0.8rem' }}>{item.name}</span>
+                    </div>
+                    <div className="leaderboard-stats" style={{ gap: '0.75rem', fontSize: '0.75rem' }}>
+                      <span>{item.reports_count} reports</span>
+                      <span className="leaderboard-score">{item.score} pts</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

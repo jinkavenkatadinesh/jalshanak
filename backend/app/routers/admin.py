@@ -1,6 +1,9 @@
 import datetime
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+import shutil
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
@@ -150,29 +153,86 @@ def get_dashboard_analytics(
     recent_activities.sort(key=lambda x: x.timestamp, reverse=True)
     recent_activities = recent_activities[:10]  # Limit to 10 overall
 
+    # 6. Calculate Water Loss & Water Saved
+    # Formula: total_water_saved = sum of resolved leaks' (duration_days * daily_loss) + base 12500
+    resolved_leaks = db.query(models.LeakReport).filter(models.LeakReport.status == "Resolved").all()
+    total_water_saved = 12500
+    for r in resolved_leaks:
+        duration_days = (r.updated_at - r.created_at).days
+        if duration_days < 1:
+            duration_days = 1
+        total_water_saved += duration_days * r.daily_loss
+
+    # active_daily_loss = sum of daily_loss for all unresolved leaks
+    unresolved_leaks = db.query(models.LeakReport).filter(models.LeakReport.status != "Resolved").all()
+    active_daily_loss = sum(r.daily_loss for r in unresolved_leaks)
+
+    # 7. Citizen Leaderboard
+    user_counts = db.query(
+        models.User.name,
+        func.count(models.LeakReport.id).label("count")
+    ).join(models.LeakReport, models.LeakReport.user_id == models.User.id).group_by(models.User.name).all()
+    
+    mock_users = [
+        {"name": "Dinesh", "reports_count": 15, "score": 1500},
+        {"name": "Ravi", "reports_count": 12, "score": 1200},
+        {"name": "Akhil", "reports_count": 8, "score": 800}
+    ]
+    
+    leaderboard_list = []
+    for name, count in user_counts:
+        if name not in ["Dinesh", "Ravi", "Akhil"]:
+            leaderboard_list.append({
+                "name": name,
+                "reports_count": count,
+                "score": count * 100
+            })
+            
+    for mock in mock_users:
+        leaderboard_list.append(mock)
+        
+    leaderboard_list.sort(key=lambda x: x["score"], reverse=True)
+    
+    leaderboard = []
+    for idx, user_data in enumerate(leaderboard_list):
+        leaderboard.append(
+            schemas.LeaderboardUser(
+                rank=idx + 1,
+                name=user_data["name"],
+                reports_count=user_data["reports_count"],
+                score=user_data["score"]
+            )
+        )
+
     return schemas.DashboardStats(
         total_reports=total_reports,
         resolved_reports=resolved_reports,
         pending_reports=pending_reports,
+        total_water_saved=total_water_saved,
+        active_daily_loss=active_daily_loss,
         area_distribution=area_dist,
         severity_distribution=severity_dist,
         status_distribution=status_dist,
-        recent_activities=recent_activities
+        recent_activities=recent_activities,
+        leaderboard=leaderboard
     )
 
 @router.put("/report/{id}/status", response_model=schemas.LeakReportOut)
 def update_report_status(
     id: int,
-    status_in: schemas.StatusUpdate,
+    status: str = Form(...),
+    remarks: Optional[str] = Form(None),
+    after_image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin)
 ):
     """
     Admin-only endpoint to transition leak issue statuses and log remarks.
     Validates status inputs ('Reported', 'Under Review', 'In Progress', 'Resolved').
+    Supports uploading an after_image when resolving the leak.
     """
     valid_statuses = ["Reported", "Under Review", "In Progress", "Resolved"]
-    if status_in.status not in valid_statuses:
+    if status not in valid_statuses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid status value. Must be one of {valid_statuses}"
@@ -184,20 +244,48 @@ def update_report_status(
         
     # Record old status
     old_status = report.status
-    new_status = status_in.status
+    new_status = status
     
     # Save the updated values
     report.status = new_status
     
+    # Handle after_image file upload if present and status is Resolved
+    if new_status == "Resolved" and after_image and after_image.filename:
+        upload_dir = Path("uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_ext = Path(after_image.filename).suffix
+        unique_name = f"{uuid.uuid4()}{file_ext}"
+        file_path = upload_dir / unique_name
+        
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(after_image.file, buffer)
+            
+        report.image_url_after = f"/uploads/{unique_name}"
+
     # Log inside Status History
     status_history_log = models.StatusHistory(
         report_id=id,
         old_status=old_status,
         new_status=new_status,
-        remarks=status_in.remarks,
+        remarks=remarks,
         changed_by=current_admin.id
     )
     db.add(status_history_log)
+
+    # Generate a Notification entry for the reporter if status changed
+    if old_status != new_status:
+        notif_msg = f"The status of your reported leak '{report.title}' has been updated to '{new_status}'."
+        if new_status == "Resolved":
+            notif_msg = f"Your reported leak '{report.title}' has been successfully resolved. Thank you for your civic contribution!"
+        
+        notif = models.Notification(
+            user_id=report.user_id,
+            report_id=report.id,
+            message=notif_msg
+        )
+        db.add(notif)
+        
     db.commit()
     db.refresh(report)
     

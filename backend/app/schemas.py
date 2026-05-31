@@ -51,6 +51,9 @@ class LeakReportOut(BaseModel):
     status: str
     verification_count: int
     severity: str
+    image_url_after: Optional[str] = None
+    priority_score: int
+    daily_loss: int
     created_at: datetime.datetime
     updated_at: datetime.datetime
     reporter_name: Optional[str] = None
@@ -90,6 +93,16 @@ class StatusUpdate(BaseModel):
     status: str = Field(..., description="Must be one of 'Reported', 'In Progress', 'Resolved'")
     remarks: Optional[str] = None
 
+class NotificationOut(BaseModel):
+    id: int
+    user_id: int
+    report_id: int
+    message: str
+    is_read: int  # 0 for unread, 1 for read
+    created_at: datetime.datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
 
 # --- Analytics & Dashboard Schemas ---
 
@@ -114,11 +127,20 @@ class ActivityFeedItem(BaseModel):
     timestamp: datetime.datetime
     user_name: str
 
+class LeaderboardUser(BaseModel):
+    rank: int
+    name: str
+    reports_count: int
+    score: int
+
 class DashboardStats(BaseModel):
     total_reports: int
     resolved_reports: int
     pending_reports: int  # Reported + In Progress
+    total_water_saved: int
+    active_daily_loss: int
     area_distribution: List[AreaDistribution]
     severity_distribution: List[SeverityDistribution]
     status_distribution: List[StatusDistribution]
     recent_activities: List[ActivityFeedItem]
+    leaderboard: List[LeaderboardUser]

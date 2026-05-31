@@ -21,6 +21,7 @@ const AdminDashboard = () => {
   const [selectedReportHistory, setSelectedReportHistory] = useState([]);
   const [newStatus, setNewStatus] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [afterImage, setAfterImage] = useState(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusSuccessMsg, setStatusSuccessMsg] = useState('');
 
@@ -83,25 +84,41 @@ const AdminDashboard = () => {
     setIsUpdatingStatus(true);
     setStatusSuccessMsg('');
     try {
-      const res = await api.put(`/admin/report/${selectedReport.id}/status`, {
-        status: newStatus,
-        remarks: remarks
+      const formData = new FormData();
+      formData.append('status', newStatus);
+      formData.append('remarks', remarks);
+      if (newStatus === 'Resolved' && afterImage) {
+        formData.append('after_image', afterImage);
+      }
+
+      const res = await api.put(`/admin/report/${selectedReport.id}/status`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       // Update local report object in list
       setReports((prev) => 
-        prev.map((rep) => (rep.id === selectedReport.id ? { ...rep, status: res.data.status, severity: res.data.severity } : rep))
+        prev.map((rep) => (rep.id === selectedReport.id ? { 
+          ...rep, 
+          status: res.data.status, 
+          severity: res.data.severity,
+          image_url_after: res.data.image_url_after 
+        } : rep))
       );
       
       // Update currently selected object
-      setSelectedReport((prev) => ({ ...prev, status: res.data.status }));
+      setSelectedReport((prev) => ({ 
+        ...prev, 
+        status: res.data.status,
+        image_url_after: res.data.image_url_after 
+      }));
       
       // Refresh status remarks logs
       const historyRes = await api.get(`/admin/report/${selectedReport.id}/history`);
       setSelectedReportHistory(historyRes.data);
       
       setRemarks('');
-      setStatusSuccessMsg('Issue status and comments updated successfully!');
+      setAfterImage(null);
+      setStatusSuccessMsg('Issue status, repair proof photo and comments updated successfully!');
       
       // Refresh analytic statistics cards
       fetchAnalytics();
@@ -422,18 +439,47 @@ const AdminDashboard = () => {
                   </span>
                 </div>
 
-                <img 
-                  src={selectedReport.image_url 
-                    ? `http://localhost:8000${selectedReport.image_url}` 
-                    : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80'
-                  } 
-                  alt={selectedReport.title} 
-                  className="drawer-image"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80';
-                  }}
-                />
+                 {selectedReport.image_url_after ? (
+                  <div className="split-comparison-container">
+                    <div className="split-comparison-box">
+                      <span className="split-comparison-label">Before Repair</span>
+                      <img 
+                        src={`http://localhost:8000${selectedReport.image_url}`} 
+                        alt="Before leak" 
+                        className="split-comparison-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                    </div>
+                    <div className="split-comparison-box">
+                      <span className="split-comparison-label" style={{ color: 'var(--color-resolved)' }}>After Repair</span>
+                      <img 
+                        src={`http://localhost:8000${selectedReport.image_url_after}`} 
+                        alt="After repair" 
+                        className="split-comparison-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <img 
+                    src={selectedReport.image_url 
+                      ? `http://localhost:8000${selectedReport.image_url}` 
+                      : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80'
+                    } 
+                    alt={selectedReport.title} 
+                    className="drawer-image"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80';
+                    }}
+                  />
+                )}
 
                 <div>
                   <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Description / Remarks</h4>
@@ -490,6 +536,19 @@ const AdminDashboard = () => {
                       />
                     </div>
 
+                    {newStatus === 'Resolved' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Upload After Repair Photo (Verification Proof)</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setAfterImage(e.target.files[0])}
+                          className="form-control"
+                          style={{ padding: '0.4rem' }}
+                        />
+                      </div>
+                    )}
+
                     <button 
                       type="submit" 
                       className="btn btn-primary"
@@ -503,6 +562,21 @@ const AdminDashboard = () => {
 
                 {/* Render historical timeline logs */}
                 <StatusHistoryTimeline history={selectedReportHistory} />
+
+                {/* Dynamic QR Code Generator for Field Staff audits */}
+                <div className="qrcode-container">
+                  <span className="qrcode-title">Field Audit QR Scanner</span>
+                  <div className="qrcode-svg-wrapper">
+                    <img 
+                      src={`https://quickchart.io/qr?text=http://localhost:5173/reports/${selectedReport.id}&size=130&margin=0`}
+                      alt="Field Audit QR Link"
+                      style={{ width: '130px', height: '130px' }}
+                    />
+                  </div>
+                  <span className="qrcode-desc">
+                    Field engineers scan this token onsite to instantly verify status remarks, logs, and upload completion proofs.
+                  </span>
+                </div>
               </>
             ) : (
               <div className="drawer-placeholder">

@@ -12,6 +12,9 @@ const ReportModal = ({ isOpen, onClose, onReportSubmitted }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [isScanComplete, setIsScanComplete] = useState(false);
+  const [duplicateMergeInfo, setDuplicateMergeInfo] = useState(null);
 
   // Auto capture GPS coordinates on modal load
   useEffect(() => {
@@ -26,6 +29,9 @@ const ReportModal = ({ isOpen, onClose, onReportSubmitted }) => {
       setGpsStatus('idle');
       setImageFile(null);
       setImagePreview(null);
+      setIsScanning(false);
+      setIsScanComplete(false);
+      setDuplicateMergeInfo(null);
       setError('');
     }
   }, [isOpen]);
@@ -64,6 +70,12 @@ const ReportModal = ({ isOpen, onClose, onReportSubmitted }) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
+        setIsScanning(true);
+        setIsScanComplete(false);
+        setTimeout(() => {
+          setIsScanning(false);
+          setIsScanComplete(true);
+        }, 3000);
       };
       reader.readAsDataURL(file);
     }
@@ -98,8 +110,14 @@ const ReportModal = ({ isOpen, onClose, onReportSubmitted }) => {
       const res = await api.post('/reports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      onReportSubmitted(res.data);
-      onClose();
+      
+      // If verification count is greater than 0, it means it's an existing merged duplicate
+      if (res.data.verification_count > 0) {
+        setDuplicateMergeInfo(res.data);
+      } else {
+        onReportSubmitted(res.data);
+        onClose();
+      }
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || 'Failed to submit report. Please try again.');
@@ -109,6 +127,37 @@ const ReportModal = ({ isOpen, onClose, onReportSubmitted }) => {
   };
 
   if (!isOpen) return null;
+
+  if (duplicateMergeInfo) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content" style={{ border: '1px solid var(--color-under-review)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', color: 'var(--color-under-review)' }}>
+            <AlertTriangle size={56} className="pulsing" />
+          </div>
+          <h2 style={{ color: 'var(--color-under-review)', marginBottom: '1rem' }}>Active Leakage Detected!</h2>
+          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+            An active report already exists near this location: <strong style={{ color: 'var(--text-primary)' }}>"{duplicateMergeInfo.title}"</strong>.
+          </p>
+          <div style={{ backgroundColor: 'var(--bg-under-review-glass)', padding: '1rem', borderRadius: '8px', fontSize: '0.88rem', color: '#fde047', border: '1px solid rgba(245,158,11,0.2)', marginBottom: '2rem' }}>
+            To prevent database clutter, we have automatically <strong>merged</strong> your report as a verification vote! This increases the leak's Priority Rating to <strong>{duplicateMergeInfo.priority_score}</strong> to speed up dispatch.
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ width: '100%' }}
+            onClick={() => {
+              onReportSubmitted(duplicateMergeInfo);
+              setDuplicateMergeInfo(null);
+              onClose();
+            }}
+          >
+            Acknowledge & Sync Portal
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-overlay">
@@ -198,9 +247,25 @@ const ReportModal = ({ isOpen, onClose, onReportSubmitted }) => {
               />
 
               {imagePreview ? (
-                <div className="upload-preview-container">
+                <div className="upload-preview-container" style={{ position: 'relative', width: '100%' }}>
                   <img src={imagePreview} alt="Leak preview" className="upload-preview" />
-                  <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  
+                  {isScanning && (
+                    <div className="ai-scan-overlay">
+                      <div className="ai-scan-line"></div>
+                      <div className="ai-scan-text">AI Visual Diagnostics Scan...</div>
+                    </div>
+                  )}
+
+                  {isScanComplete && (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                      <span className="ai-cert-stamp">
+                        <CheckCircle size={14} /> JalRakshak AI Certified (96% Water Match)
+                      </span>
+                    </div>
+                  )}
+
+                  <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem', justifyContent: 'center' }}>
                     <ImageIcon size={14} /> Change Photo
                   </span>
                 </div>

@@ -33,11 +33,19 @@ def analyze_leak_image(description: str, filename: str) -> Dict[str, Any]:
         severity = "Medium"
         confidence = 0.88 + (0.07 * (len(desc_lower) % 10) / 10.0) # Conf: 0.88 - 0.95
         
+    severity_factors = {"High": 3, "Medium": 2, "Low": 1}
+    daily_losses = {"High": 1000, "Medium": 200, "Low": 50}
+    
+    factor = severity_factors[severity]
+    loss = daily_losses[severity]
+        
     return {
         "is_leak_detected": is_leak_detected,
         "severity": severity,
         "confidence_score": round(confidence, 2),
-        "ai_remarks": f"AI detection complete. Water leak detected visually with {int(confidence*100)}% confidence. Predicted Severity: {severity}."
+        "daily_loss": loss,
+        "priority_score": factor * 1, # Initial priority score (votes=0)
+        "ai_remarks": f"AI detection complete. Water leak detected visually with {int(confidence*100)}% confidence. Predicted Severity: {severity}. Estimated Daily Loss: {loss} Liters."
     }
 
 def check_for_duplicate_reports(db: Session, latitude: float, longitude: float, max_distance_meters: float = 100.0) -> List[Dict[str, Any]]:

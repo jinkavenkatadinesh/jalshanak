@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Calendar, User, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Calendar, User, ShieldCheck, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 // Custom DivIcon creator to avoid broken asset path packaging in React Vite
@@ -42,14 +42,95 @@ const ChangeMapView = ({ center }) => {
 
 const MapView = ({ reports, centerPoint, onVerify, selectedReportId }) => {
   const { user } = useAuth();
+  const [viewMode, setViewMode] = useState('pin'); // 'pin' or 'heatmap'
   
   // Default coordinates centered on Hyderabad, Telangana
   const DEFAULT_HYDERABAD_CENTER = [17.3850, 78.4867];
   
   const mapCenter = centerPoint && centerPoint[0] ? centerPoint : DEFAULT_HYDERABAD_CENTER;
 
+  const renderPopup = (report) => {
+    const imageSrc = report.image_url 
+      ? `http://localhost:8000${report.image_url}` 
+      : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80'; // fallback high-quality water image
+
+    return (
+      <div className="map-popup-card">
+        <img 
+          src={imageSrc} 
+          alt={report.title} 
+          className="popup-image" 
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80';
+          }}
+        />
+        
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+            <span className={`status-badge ${report.status.toLowerCase().replace(' ', '-')}`}>
+              {report.status}
+            </span>
+            <span className={`severity-badge ${report.severity.toLowerCase()}`}>
+              Priority Score: {report.priority_score}
+            </span>
+          </div>
+          <h3 className="popup-title">{report.title}</h3>
+        </div>
+
+        <p className="popup-desc">{report.description}</p>
+        
+        <div style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <User size={12} />
+            <span>By: {report.reporter_name || 'Citizen'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Calendar size={12} />
+            <span>{new Date(report.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+
+        <div className="popup-footer">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600 }}>
+            <ShieldCheck size={14} />
+            <span>{report.verification_count} Verifications</span>
+          </div>
+
+          {/* Enable verification trigger inside Popup overlay for Citizens */}
+          {user && user.role === 'citizen' && user.id !== report.user_id && report.status !== 'Resolved' && (
+            <button 
+              onClick={() => onVerify && onVerify(report.id)}
+              className="btn btn-accent"
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', borderRadius: '4px' }}
+            >
+              Verify
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ width: '100%', height: '100%', minHeight: '350px', position: 'relative' }}>
+      
+      {/* Floating View Toggler Control */}
+      <div className="floating-map-toggle">
+        <button 
+          className={`map-toggle-btn ${viewMode === 'pin' ? 'active' : ''}`}
+          onClick={() => setViewMode('pin')}
+        >
+          Pins
+        </button>
+        <button 
+          className={`map-toggle-btn ${viewMode === 'heatmap' ? 'active' : ''}`}
+          onClick={() => setViewMode('heatmap')}
+        >
+          <Layers size={12} /> Heatmap
+        </button>
+      </div>
+
       <MapContainer 
         center={mapCenter} 
         zoom={12} 
@@ -64,79 +145,52 @@ const MapView = ({ reports, centerPoint, onVerify, selectedReportId }) => {
         
         <ChangeMapView center={centerPoint} />
         
-        {reports.map((report) => {
-          if (!report.latitude || !report.longitude) return null;
-          
-          const isSelected = report.id === selectedReportId;
-          const imageSrc = report.image_url 
-            ? `http://localhost:8000${report.image_url}` 
-            : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80'; // fallback high-quality water image
-
-          return (
-            <Marker 
-              key={report.id} 
-              position={[report.latitude, report.longitude]}
-              icon={createCustomIcon(report.status)}
-            >
-              <Popup>
-                <div className="map-popup-card">
-                  <img 
-                    src={imageSrc} 
-                    alt={report.title} 
-                    className="popup-image" 
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80';
-                    }}
-                  />
-                  
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <span className={`status-badge ${report.status.toLowerCase().replace(' ', '-')}`}>
-                        {report.status}
-                      </span>
-                      <span className={`severity-badge ${report.severity.toLowerCase()}`}>
-                        {report.severity} Priority
-                      </span>
-                    </div>
-                    <h3 className="popup-title">{report.title}</h3>
-                  </div>
-
-                  <p className="popup-desc">{report.description}</p>
-                  
-                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <User size={12} />
-                      <span>By: {report.reporter_name || 'Citizen'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Calendar size={12} />
-                      <span>{new Date(report.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="popup-footer">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600 }}>
-                      <ShieldCheck size={14} />
-                      <span>{report.verification_count} Verifications</span>
-                    </div>
-
-                    {/* Enable verification trigger inside Popup overlay for Citizens */}
-                    {user && user.role === 'citizen' && user.id !== report.user_id && report.status !== 'Resolved' && (
-                      <button 
-                        onClick={() => onVerify && onVerify(report.id)}
-                        className="btn btn-accent"
-                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', borderRadius: '4px' }}
-                      >
-                        Verify
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+        {viewMode === 'pin' ? (
+          reports.map((report) => {
+            if (!report.latitude || !report.longitude) return null;
+            return (
+              <Marker 
+                key={`marker-${report.id}`} 
+                position={[report.latitude, report.longitude]}
+                icon={createCustomIcon(report.status)}
+              >
+                <Popup>
+                  {renderPopup(report)}
+                </Popup>
+              </Marker>
+            );
+          })
+        ) : (
+          reports.map((report) => {
+            if (!report.latitude || !report.longitude) return null;
+            
+            const priority = report.priority_score || 1;
+            let color = '#10b981'; // Green: stable / low density
+            if (priority >= 10) {
+              color = '#ef4444'; // Red: highly critical area
+            } else if (priority >= 5) {
+              color = '#f59e0b'; // Amber: moderate area
+            }
+            
+            const radius = 10 + (priority * 2.2); // Radii scale based on priority score density
+            
+            return (
+              <CircleMarker
+                key={`heat-${report.id}`}
+                center={[report.latitude, report.longitude]}
+                radius={radius}
+                fillColor={color}
+                color={color}
+                fillOpacity={0.45}
+                weight={1.5}
+              >
+                <Popup>
+                  {renderPopup(report)}
+                </Popup>
+              </CircleMarker>
+            );
+          })
+        )}
       </MapContainer>
       
       {/* Visual Floating Map Legend for Status Indicators */}
@@ -156,23 +210,43 @@ const MapView = ({ reports, centerPoint, onVerify, selectedReportId }) => {
         gap: '0.4rem',
         boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
       }}>
-        <div style={{ fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem', marginBottom: '0.15rem' }}>Map Legend</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }}></span>
-          <span>Reported</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block' }}></span>
-          <span>Under Review</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0ea5e9', display: 'inline-block' }}></span>
-          <span>In Progress</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
-          <span>Resolved</span>
-        </div>
+        {viewMode === 'pin' ? (
+          <>
+            <div style={{ fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem', marginBottom: '0.15rem' }}>Status Pin Indicators</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }}></span>
+              <span>Reported</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block' }}></span>
+              <span>Under Review</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0ea5e9', display: 'inline-block' }}></span>
+              <span>In Progress</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
+              <span>Resolved</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontWeight: 700, textTransform: 'uppercase', color: '#94a3b8', fontSize: '0.7rem', marginBottom: '0.15rem' }}>Proximity Density Heat</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.5)', border: '1.5px solid #ef4444', display: 'inline-block' }}></span>
+              <span>Critical (Score &gt;= 10)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'rgba(245, 158, 11, 0.5)', border: '1.5px solid #f59e0b', display: 'inline-block' }}></span>
+              <span>Moderate (Score 5-9)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.5)', border: '1.5px solid #10b981', display: 'inline-block' }}></span>
+              <span>Stable (Score &lt; 5)</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
