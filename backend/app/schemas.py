@@ -54,6 +54,9 @@ class LeakReportOut(BaseModel):
     image_url_after: Optional[str] = None
     priority_score: int
     daily_loss: int
+    assigned_engineer: Optional[str] = None
+    assigned_date: Optional[datetime.datetime] = None
+    expected_completion: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     reporter_name: Optional[str] = None
@@ -139,6 +142,8 @@ class DashboardStats(BaseModel):
     pending_reports: int  # Reported + In Progress
     total_water_saved: int
     active_daily_loss: int
+    sla_met_percent: int
+    sla_violated_percent: int
     area_distribution: List[AreaDistribution]
     severity_distribution: List[SeverityDistribution]
     status_distribution: List[StatusDistribution]

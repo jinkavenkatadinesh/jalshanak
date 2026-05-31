@@ -62,14 +62,8 @@ jobs:
             # 2. Pull the latest commits from your GitHub repository
             git pull origin main
             
-            # 3. Re-compile Frontend React Static Assets
-            cd frontend
-            npm install
-            npm run build
-            cd ..
-            
-            # 4. Rebuild and restart Docker containers seamlessly in the background
+            # 3. Rebuild and restart Docker containers seamlessly in the background (handles React compilation containerized)
             docker-compose -f docker-compose.prod.yml up -d --build
             
-            # 5. Clean up unused dangling Docker caches to preserve server space
+            # 4. Clean up unused dangling Docker caches to preserve server space
             docker system prune -f

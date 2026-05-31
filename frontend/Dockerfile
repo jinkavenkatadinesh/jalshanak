@@ -9,6 +9,12 @@ RUN npm install
 # Copy source assets
 COPY . .
 
+# Set up build-time environment variables for Vite compiler
+ARG VITE_API_BASE_URL=""
+ARG VITE_BACKEND_URL=""
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 # Compile Vite distribution assets
 RUN npm run build
 

@@ -1,5 +1,13 @@
 import datetime
 from typing import Optional
+import bcrypt
+
+# Patch passlib bcrypt incompatibility with newer bcrypt versions (>=4.0.0)
+if not hasattr(bcrypt, "__about__"):
+    class BcryptAbout:
+        __version__ = bcrypt.__version__
+    bcrypt.__about__ = BcryptAbout()
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt

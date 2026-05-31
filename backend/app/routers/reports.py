@@ -130,12 +130,13 @@ def create_report(
 ):
     """
     Submit a water leakage report. 
-    Triggers simulated AI image verification and checks duplicates within 100 meters.
+    Triggers visual AI image analysis, parses EXIF geolocations, and checks duplicates within 100 meters using Haversine formula.
     If a duplicate open leak exists, it automatically merges the report as a verification vote.
     """
     # 1. Handle file upload if present
     image_url = None
     filename_str = ""
+    saved_filepath = None
     if image and image.filename:
         upload_dir = Path("uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -149,8 +150,21 @@ def create_report(
             
         image_url = f"/uploads/{unique_name}"
         filename_str = image.filename
+        saved_filepath = str(file_path)
 
-    # 2. Trigger Proximity Duplicate Merging (100m radius check)
+    # 2. Run AI Engine (extracts EXIF GPS and analyzes visual colors)
+    ai_results = analyze_leak_image(description or "", filename_str, saved_filepath)
+    detected_severity = ai_results["severity"]
+    daily_loss = ai_results["daily_loss"]
+    priority_score = ai_results["priority_score"]
+    ai_remarks = ai_results["ai_remarks"]
+    
+    # 3. Geo-metadata snap: Overwrite coordinates if embedded EXIF GPS tags exist
+    if ai_results.get("exif_gps"):
+        latitude = ai_results["exif_gps"]["latitude"]
+        longitude = ai_results["exif_gps"]["longitude"]
+
+    # 4. Proximity Duplicate Merging (100m radius check via Haversine)
     duplicates = check_for_duplicate_reports(db, latitude, longitude, max_distance_meters=100.0)
     if duplicates:
         # Find the primary active duplicate report
@@ -198,16 +212,38 @@ def create_report(
         # Bounce with the merged ticket info to prevent database bloating
         return dup_schema
 
-    # 3. No duplicates found: Run AI Engine & create new report
-    ai_results = analyze_leak_image(description or "", filename_str)
-    detected_severity = ai_results["severity"]
-    daily_loss = ai_results["daily_loss"]
-    priority_score = ai_results["priority_score"]
+    # 5. No duplicates found: create new report
+    # Auto-assign engineer team based on neighborhood coordinates
+    assigned_engineer = "HMWS&SB District Dispatch Team"
+    if abs(latitude - 17.44) < 0.05 and abs(longitude - 78.38) < 0.05:
+        assigned_engineer = "HMWS&SB Team Alpha (Gachibowli)"
+    elif abs(latitude - 17.40) < 0.05 and abs(longitude - 78.44) < 0.05:
+        assigned_engineer = "HMWS&SB Team Beta (Jubilee Hills)"
+    elif abs(latitude - 17.48) < 0.05 and abs(longitude - 78.55) < 0.05:
+        assigned_engineer = "Secunderabad Maintenance Crew"
+    elif abs(latitude - 17.36) < 0.05 and abs(longitude - 78.47) < 0.05:
+        assigned_engineer = "Old City Rapid Repair Division"
+
+    assigned_date = datetime.datetime.utcnow()
+    
+    # SLA expected completion hour calculator
+    sla_hours = 48 # Medium severity default
+    if detected_severity == "High":
+        sla_hours = 24
+    elif detected_severity == "Low":
+        sla_hours = 72
+        
+    expected_completion = assigned_date + datetime.timedelta(hours=sla_hours)
+
+    # Append real AI Diagnostics directly to the description
+    final_description = description or ""
+    if ai_remarks:
+        final_description += f"\n\n[AI Diagnostics]\n{ai_remarks}"
 
     new_report = models.LeakReport(
         user_id=current_user.id,
         title=title,
-        description=description,
+        description=final_description,
         image_url=image_url,
         latitude=latitude,
         longitude=longitude,
@@ -215,7 +251,10 @@ def create_report(
         verification_count=0,
         severity=detected_severity,
         priority_score=priority_score,
-        daily_loss=daily_loss
+        daily_loss=daily_loss,
+        assigned_engineer=assigned_engineer,
+        assigned_date=assigned_date,
+        expected_completion=expected_completion
     )
     db.add(new_report)
     db.commit()

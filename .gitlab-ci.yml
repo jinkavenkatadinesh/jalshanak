@@ -1,0 +1,49 @@
+stages:
+  - test-and-validate
+  - deploy-to-vps
+
+# =========================================================================
+# JOB 1: VALIDATE BACKEND COMPILATION & PACKAGES INTEGRITY
+# =========================================================================
+backend-test:
+  stage: test-and-validate
+  image: python:3.10-slim
+  script:
+    - pip install -r backend/requirements.txt
+    - python -m compileall backend
+
+# =========================================================================
+# JOB 2: VALIDATE FRONTEND REACT & VITE BUNDLING INTEGRITY
+# =========================================================================
+frontend-test:
+  stage: test-and-validate
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm install
+    - npm run build
+
+# =========================================================================
+# JOB 3: AUTOMATE REMOTE DEPLOYMENT TO YOUR VPS WORKSPACE VIA SSH
+# =========================================================================
+deploy:
+  stage: deploy-to-vps
+  image: alpine:latest
+  only:
+    - main
+  before_script:
+    # Set up SSH key and dependencies in temporary runner instance
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$VPS_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H -p 22 "$VPS_IP_HOST" >> ~/.ssh/known_hosts
+  script:
+    # SSH into target remote VM, pull fresh main branch changes and rebuild Docker
+    - ssh -p 22 "$VPS_USER@$VPS_IP_HOST" "
+        cd /var/www/jalrakshak &&
+        git pull origin main &&
+        docker-compose -f docker-compose.prod.yml up -d --build &&
+        docker system prune -f
+      "

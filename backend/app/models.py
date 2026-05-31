@@ -35,6 +35,9 @@ class LeakReport(Base):
     image_url_after = Column(String, nullable=True)
     priority_score = Column(Integer, default=1, nullable=False)
     daily_loss = Column(Integer, default=200, nullable=False)
+    assigned_engineer = Column(String, nullable=True)
+    assigned_date = Column(DateTime, nullable=True)
+    expected_completion = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)
 

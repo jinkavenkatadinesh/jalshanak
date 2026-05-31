@@ -112,6 +112,57 @@ docker-compose up --build
 
 ---
 
+### Option 3: Enterprise Production Deployment (SSL Gateway & Multi-stage Containers)
+
+For production environments, JalRakshak containerizes the frontend compiled asset server, backend API hub, and PostgreSQL persistence with a unified secure SSL reverse-proxy gateway (Nginx).
+
+#### 1. Setup Production Environment variables
+Create a `.env.prod` (or rename `.env` in production) containing your live configurations:
+```env
+# --- Production Settings ---
+DB_PASSWORD=your_ultra_secure_db_password
+SECRET_KEY=your_production_jwt_signing_key
+VITE_API_BASE_URL=/api
+VITE_BACKEND_URL=
+```
+
+#### 2. Boot the Production Stack
+Run the production orchestrator:
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+This builds and launches four self-healing containers:
+* **`jalrakshak_postgres_prod`**: Core PostgreSQL engine.
+* **`jalrakshak_backend_prod`**: High-performance FastAPI REST API.
+* **`jalrakshak_frontend_prod`**: Lightweight Nginx serving Vite compiled production bundle.
+* **`jalrakshak_nginx_prod`**: Unified web gateway reverse proxying SSL (HTTPS), forwarding REST requests, and caching static assets.
+
+#### 3. Let's Encrypt SSL Bootstrapping (Chicken-and-Egg Workaround)
+Since `nginx.prod.conf` requires the certificate files to boot, but Certbot needs Nginx running to verify the domain via port 80, follow this standard bootstrapping procedure on your live server:
+
+1. **Temporary Non-SSL Boot**:
+   In `nginx.prod.conf`, temporarily comment out the server block listening on `443 ssl` (lines 21-61), and comment out the HTTPS redirect in the port 80 block (lines 15-18).
+2. **Launch Nginx**:
+   Run `docker-compose -f docker-compose.prod.yml up -d web_gateway` to start Nginx on HTTP port 80.
+3. **Generate Live Certificates**:
+   Run a temporary Certbot container to fetch real certificates:
+   ```bash
+   docker run --rm \
+     -v jalshanak_certbot_certs:/etc/letsencrypt \
+     -v jalshanak_certbot_www:/var/www/certbot \
+     certbot/certbot certonly --webroot \
+     -w /var/www/certbot \
+     -d yourdomain.com -d www.yourdomain.com \
+     --email admin@yourdomain.com --agree-tos --no-eff-email
+   ```
+4. **Restore configuration and Reload**:
+   Uncomment the lines in `nginx.prod.conf` and reload Nginx:
+   ```bash
+   docker-compose -f docker-compose.prod.yml exec web_gateway nginx -s reload
+   ```
+
+---
+
 ## 🔑 Sandboxed Demo Logins
 
 At start-up, the database is auto-seeded with mock citizens, status timelines, and reported leakages in Hyderabad neighborhoods. You can sign in with:

@@ -9,6 +9,8 @@ import {
   TrendingUp, Award, Calendar, RefreshCw, BarChart2, PieChart
 } from 'lucide-react';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
@@ -444,7 +446,7 @@ const AdminDashboard = () => {
                     <div className="split-comparison-box">
                       <span className="split-comparison-label">Before Repair</span>
                       <img 
-                        src={`http://localhost:8000${selectedReport.image_url}`} 
+                        src={`${BACKEND_URL}${selectedReport.image_url}`} 
                         alt="Before leak" 
                         className="split-comparison-img"
                         onError={(e) => {
@@ -456,7 +458,7 @@ const AdminDashboard = () => {
                     <div className="split-comparison-box">
                       <span className="split-comparison-label" style={{ color: 'var(--color-resolved)' }}>After Repair</span>
                       <img 
-                        src={`http://localhost:8000${selectedReport.image_url_after}`} 
+                        src={`${BACKEND_URL}${selectedReport.image_url_after}`} 
                         alt="After repair" 
                         className="split-comparison-img"
                         onError={(e) => {
@@ -469,7 +471,7 @@ const AdminDashboard = () => {
                 ) : (
                   <img 
                     src={selectedReport.image_url 
-                      ? `http://localhost:8000${selectedReport.image_url}` 
+                      ? `${BACKEND_URL}${selectedReport.image_url}` 
                       : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80'
                     } 
                     alt={selectedReport.title} 
@@ -568,7 +570,7 @@ const AdminDashboard = () => {
                   <span className="qrcode-title">Field Audit QR Scanner</span>
                   <div className="qrcode-svg-wrapper">
                     <img 
-                      src={`https://quickchart.io/qr?text=http://localhost:5173/reports/${selectedReport.id}&size=130&margin=0`}
+                      src={`https://quickchart.io/qr?text=${window.location.origin}/reports/${selectedReport.id}&size=130&margin=0`}
                       alt="Field Audit QR Link"
                       style={{ width: '130px', height: '130px' }}
                     />
