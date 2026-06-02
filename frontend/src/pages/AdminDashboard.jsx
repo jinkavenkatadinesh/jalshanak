@@ -9,7 +9,12 @@ import {
   TrendingUp, Award, Calendar, RefreshCw, BarChart2, PieChart
 } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost') return '';
+  return 'http://localhost:8000';
+};
+const BACKEND_URL = getBackendUrl();
 
 const AdminDashboard = () => {
   const { user } = useAuth();

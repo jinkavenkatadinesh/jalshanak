@@ -50,7 +50,12 @@ const MapView = ({ reports, centerPoint, onVerify, selectedReportId }) => {
   const mapCenter = centerPoint && centerPoint[0] ? centerPoint : DEFAULT_HYDERABAD_CENTER;
 
   const renderPopup = (report) => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+    const getBackendUrl = () => {
+      if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+      if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost') return '';
+      return 'http://localhost:8000';
+    };
+    const BACKEND_URL = getBackendUrl();
     const imageSrc = report.image_url 
       ? `${BACKEND_URL}${report.image_url}` 
       : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=400&q=80'; // fallback high-quality water image

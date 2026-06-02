@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.auth import get_password_hash
@@ -46,7 +47,28 @@ if not frontend_dist_path.exists():
     frontend_dist_path = Path("../frontend/dist")
 
 if frontend_dist_path.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist_path), html=True), name="frontend")
+
+    @app.get("/{catchall:path}")
+    async def serve_frontend(catchall: str):
+        # Check if requested path points to a file inside the dist directory
+        file_path = frontend_dist_path / catchall
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+
+        # Avoid catching api, uploads, docs, etc. to return proper 404s
+        if catchall.startswith(("api", "uploads", "docs", "redoc", "openapi.json")):
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404)
+
+        # Return index.html for frontend routing support (fallback)
+        index_file = frontend_dist_path / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404)
 else:
 
     @app.get("/")
