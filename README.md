@@ -2,7 +2,7 @@
 title: JalRakshak
 emoji: 💧
 colorFrom: blue
-colorTo: cyan
+colorTo: indigo
 sdk: docker
 app_port: 7860
 license: agpl-3.0
