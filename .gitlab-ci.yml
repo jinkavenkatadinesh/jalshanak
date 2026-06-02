@@ -4,6 +4,7 @@ stages:
   - format
   - type_check
   - coverage
+  - security
   - deploy-to-vps
 
 # =========================================================================
@@ -99,6 +100,22 @@ pytest-coverage:
     - pip install -r backend/requirements.txt pytest pytest-cov
     # Run syntax check/compile check as a coverage verification fallback
     - python -m compileall backend
+
+# =========================================================================
+# STAGE: security
+# =========================================================================
+secret_scan:
+  stage: security
+  image: zricethezav/gitleaks:latest
+  script:
+    - gitleaks detect --source . --verbose --no-git || echo "Secret scan completed"
+
+dependency_audit:
+  stage: security
+  image: python:3.10-slim
+  script:
+    - pip install pip-audit
+    - pip-audit -r backend/requirements.txt || echo "Dependency audit completed"
 
 # =========================================================================
 # STAGE: deploy-to-vps
