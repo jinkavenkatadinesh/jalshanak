@@ -74,31 +74,31 @@ deploy:
   only:
     - main
   before_script:
+    - |
+      if [ -z "$VPS_SSH_PRIVATE_KEY" ] || [ -z "$VPS_IP_HOST" ] || [ -z "$VPS_USER" ]; then
+        echo "Deployment environment variables (VPS_SSH_PRIVATE_KEY, VPS_IP_HOST, VPS_USER) are not configured. Skipping deploy stage."
+        exit 0
+      fi
     - apk add --no-cache openssh-client
     - eval $(ssh-agent -s)
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - |
-      if [ -z "$VPS_SSH_PRIVATE_KEY" ]; then
-        echo "WARNING: VPS_SSH_PRIVATE_KEY is empty or not defined!"
+      if [ -f "$VPS_SSH_PRIVATE_KEY" ]; then
+        cat "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
       else
-        echo "VPS_SSH_PRIVATE_KEY length: $(echo -n "$VPS_SSH_PRIVATE_KEY" | wc -c) characters"
-        if [ -f "$VPS_SSH_PRIVATE_KEY" ]; then
-          echo "It is a file-type variable."
-          echo "File size: $(wc -c < "$VPS_SSH_PRIVATE_KEY") bytes"
-          head -n 1 "$VPS_SSH_PRIVATE_KEY"
-          cat "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
-        else
-          echo "It is a text-type variable."
-          echo "$VPS_SSH_PRIVATE_KEY" | head -n 1
-          echo "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
-        fi
+        echo "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
       fi
     - echo "" >> ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-add ~/.ssh/id_rsa
     - ssh-keyscan -H -p 22 "$VPS_IP_HOST" >> ~/.ssh/known_hosts
   script:
+    - |
+      if [ -z "$VPS_SSH_PRIVATE_KEY" ] || [ -z "$VPS_IP_HOST" ] || [ -z "$VPS_USER" ]; then
+        echo "Skipping deploy script."
+        exit 0
+      fi
     - ssh -p 22 "$VPS_USER@$VPS_IP_HOST" "
         cd /var/www/jalrakshak &&
         git pull origin main &&
