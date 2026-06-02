@@ -27,5 +27,5 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://jalrakshak-backend.onrender.com/api
+        value: https://jalshanak-1rvj.onrender.com/api
         sync: false
