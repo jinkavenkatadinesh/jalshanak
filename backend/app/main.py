@@ -40,14 +40,23 @@ app.include_router(reports.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
 
-@app.get("/")
-def read_root():
-    return {
-        "status": "online",
-        "service": "JalRakshak API Hub",
-        "region": "Telangana (Hyderabad)",
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-    }
+# Serve React Frontend Static Files (useful for single-container deploys like Hugging Face Spaces)
+frontend_dist_path = Path("frontend/dist")
+if not frontend_dist_path.exists():
+    frontend_dist_path = Path("../frontend/dist")
+
+if frontend_dist_path.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist_path), html=True), name="frontend")
+else:
+
+    @app.get("/")
+    def read_root():
+        return {
+            "status": "online",
+            "service": "JalRakshak API Hub",
+            "region": "Telangana (Hyderabad)",
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+        }
 
 
 # Database Seeding Function
