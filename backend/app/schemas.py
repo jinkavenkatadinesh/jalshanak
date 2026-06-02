@@ -1,31 +1,38 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List
 import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 # --- Auth Schemas ---
+
 
 class UserBase(BaseModel):
     name: str
     email: EmailStr
 
+
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
     role: Optional[str] = "citizen"  # 'citizen' or 'admin'
+
 
 class UserOut(UserBase):
     id: int
     role: str
     created_at: datetime.datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
@@ -34,11 +41,13 @@ class TokenData(BaseModel):
 
 # --- Leak Report Schemas ---
 
+
 class LeakReportCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=100)
     description: Optional[str] = None
     latitude: float
     longitude: float
+
 
 class LeakReportOut(BaseModel):
     id: int
@@ -60,25 +69,28 @@ class LeakReportOut(BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
     reporter_name: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Verification Schemas ---
 
+
 class VerificationCreate(BaseModel):
     report_id: int
+
 
 class VerificationOut(BaseModel):
     id: int
     report_id: int
     user_id: int
     verified_at: datetime.datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Status History Schemas ---
+
 
 class StatusHistoryOut(BaseModel):
     id: int
@@ -89,12 +101,14 @@ class StatusHistoryOut(BaseModel):
     changed_by: int
     changed_by_name: Optional[str] = None
     changed_at: datetime.datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class StatusUpdate(BaseModel):
     status: str = Field(..., description="Must be one of 'Reported', 'In Progress', 'Resolved'")
     remarks: Optional[str] = None
+
 
 class NotificationOut(BaseModel):
     id: int
@@ -103,11 +117,12 @@ class NotificationOut(BaseModel):
     message: str
     is_read: int  # 0 for unread, 1 for read
     created_at: datetime.datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 # --- Analytics & Dashboard Schemas ---
+
 
 class AreaDistribution(BaseModel):
     area_name: str
@@ -115,13 +130,16 @@ class AreaDistribution(BaseModel):
     latitude: float
     longitude: float
 
+
 class SeverityDistribution(BaseModel):
     severity: str
     count: int
 
+
 class StatusDistribution(BaseModel):
     status: str
     count: int
+
 
 class ActivityFeedItem(BaseModel):
     id: int
@@ -130,11 +148,13 @@ class ActivityFeedItem(BaseModel):
     timestamp: datetime.datetime
     user_name: str
 
+
 class LeaderboardUser(BaseModel):
     rank: int
     name: str
     reports_count: int
     score: int
+
 
 class DashboardStats(BaseModel):
     total_reports: int

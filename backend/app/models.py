@@ -1,7 +1,10 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, UniqueConstraint
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
+
 from app.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -18,6 +21,7 @@ class User(Base):
     verifications = relationship("Verification", back_populates="user", cascade="all, delete-orphan")
     status_changes = relationship("StatusHistory", back_populates="changer", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+
 
 class LeakReport(Base):
     __tablename__ = "leak_reports"
@@ -46,6 +50,7 @@ class LeakReport(Base):
     verifications = relationship("Verification", back_populates="report", cascade="all, delete-orphan")
     status_history = relationship("StatusHistory", back_populates="report", cascade="all, delete-orphan")
 
+
 class Verification(Base):
     __tablename__ = "verifications"
 
@@ -59,9 +64,8 @@ class Verification(Base):
     user = relationship("User", back_populates="verifications")
 
     # Enforce one verification per user per report
-    __table_args__ = (
-        UniqueConstraint("report_id", "user_id", name="uq_report_user_verification"),
-    )
+    __table_args__ = (UniqueConstraint("report_id", "user_id", name="uq_report_user_verification"),)
+
 
 class StatusHistory(Base):
     __tablename__ = "status_history"
@@ -78,6 +82,7 @@ class StatusHistory(Base):
     report = relationship("LeakReport", back_populates="status_history")
     changer = relationship("User", back_populates="status_changes")
 
+
 class Notification(Base):
     __tablename__ = "notifications"
 
@@ -85,7 +90,7 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     report_id = Column(Integer, ForeignKey("leak_reports.id", ondelete="CASCADE"), nullable=False)
     message = Column(String, nullable=False)
-    is_read = Column(Integer, default=0, nullable=False) # 0 for unread, 1 for read (for SQLite compatibility)
+    is_read = Column(Integer, default=0, nullable=False)  # 0 for unread, 1 for read (for SQLite compatibility)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships

@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 from app.config import settings
 
 db_url = settings.DATABASE_URL
@@ -15,17 +16,14 @@ if db_url.startswith("postgres://"):
 
 # Adjust engine params if using SQLite (which is our standard local fallback)
 if db_url.startswith("sqlite"):
-    engine = create_engine(
-        db_url, connect_args={"check_same_thread": False}
-    )
+    engine = create_engine(db_url, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(
-        db_url, pool_pre_ping=True
-    )
+    engine = create_engine(db_url, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
 
 # DB Dependency for routing injections
 def get_db():

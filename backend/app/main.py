@@ -1,15 +1,15 @@
-import os
 import datetime
 from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.config import settings
-from app.database import engine, Base, SessionLocal
-from app.routers import auth, reports, admin
-from app.models import User, LeakReport, Verification, StatusHistory
 from app.auth import get_password_hash
+from app.config import settings
+from app.database import Base, SessionLocal, engine
+from app.models import LeakReport, StatusHistory, User, Verification
+from app.routers import admin, auth, reports
 
 # Initialize Database tables
 Base.metadata.create_all(bind=engine)
@@ -17,7 +17,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Backend services for JalRakshak Smart Water Leak Reporting System - Hyderabad/Telangana division.",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Set up CORS middleware to connect seamlessly with React frontend
@@ -39,14 +39,16 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
+
 @app.get("/")
 def read_root():
     return {
         "status": "online",
         "service": "JalRakshak API Hub",
         "region": "Telangana (Hyderabad)",
-        "timestamp": datetime.datetime.utcnow().isoformat()
+        "timestamp": datetime.datetime.utcnow().isoformat(),
     }
+
 
 # Database Seeding Function
 @app.on_event("startup")
@@ -62,7 +64,7 @@ def seed_data():
                 email=admin_email,
                 password_hash=get_password_hash("admin123"),
                 role="admin",
-                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=10)
+                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=10),
             )
             db.add(admin_user)
             db.commit()
@@ -78,10 +80,10 @@ def seed_data():
                 email=citizen_1_email,
                 password_hash=get_password_hash("citizen123"),
                 role="citizen",
-                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=8)
+                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=8),
             )
             db.add(citizen_1)
-            
+
         citizen_2_email = "anitha.reddy@gmail.com"
         citizen_2 = db.query(User).filter(User.email == citizen_2_email).first()
         if not citizen_2:
@@ -90,12 +92,12 @@ def seed_data():
                 email=citizen_2_email,
                 password_hash=get_password_hash("citizen123"),
                 role="citizen",
-                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=7)
+                created_at=datetime.datetime.utcnow() - datetime.timedelta(days=7),
             )
             db.add(citizen_2)
-        
+
         db.commit()
-        
+
         # Retrieve freshly created or existing citizen IDs for report binding
         c1 = db.query(User).filter(User.email == citizen_1_email).first()
         c2 = db.query(User).filter(User.email == citizen_2_email).first()
@@ -113,7 +115,7 @@ def seed_data():
                     status="In Progress",
                     verification_count=3,
                     severity="High",
-                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=2)
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=2),
                 ),
                 LeakReport(
                     user_id=c2.id,
@@ -124,7 +126,7 @@ def seed_data():
                     status="Under Review",
                     verification_count=1,
                     severity="Medium",
-                    created_at=datetime.datetime.utcnow() - datetime.timedelta(hours=18)
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(hours=18),
                 ),
                 LeakReport(
                     user_id=c1.id,
@@ -135,7 +137,7 @@ def seed_data():
                     status="Resolved",
                     verification_count=4,
                     severity="Low",
-                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=4)
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(days=4),
                 ),
                 LeakReport(
                     user_id=c2.id,
@@ -146,17 +148,17 @@ def seed_data():
                     status="Reported",
                     verification_count=0,
                     severity="High",
-                    created_at=datetime.datetime.utcnow() - datetime.timedelta(hours=2)
-                )
+                    created_at=datetime.datetime.utcnow() - datetime.timedelta(hours=2),
+                ),
             ]
             db.add_all(reports_to_seed)
             db.commit()
-            
+
             # Retrieve seeded reports
             r1 = db.query(LeakReport).filter(LeakReport.title.like("%Gushing%")).first()
-            r2 = db.query(LeakReport).filter(LeakReport.title.like("%Roadside%")).first()
+            db.query(LeakReport).filter(LeakReport.title.like("%Roadside%")).first()
             r3 = db.query(LeakReport).filter(LeakReport.title.like("%Drinking%")).first()
-            
+
             # 4. Seed Status History (Remarks timeline)
             histories = [
                 # Report 1 history
@@ -166,7 +168,7 @@ def seed_data():
                     new_status="Under Review",
                     remarks="HMWS&SB engineers assigned. Inspecting the source point.",
                     changed_by=admin_u.id,
-                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=1, hours=12)
+                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=1, hours=12),
                 ),
                 StatusHistory(
                     report_id=r1.id,
@@ -174,7 +176,7 @@ def seed_data():
                     new_status="In Progress",
                     remarks="Welding equipment and replacement pipe dispatched. Excavation begun.",
                     changed_by=admin_u.id,
-                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=1)
+                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=1),
                 ),
                 # Report 3 history
                 StatusHistory(
@@ -183,7 +185,7 @@ def seed_data():
                     new_status="Under Review",
                     remarks="Assigned to Area 4 local maintenance unit.",
                     changed_by=admin_u.id,
-                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=3)
+                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=3),
                 ),
                 StatusHistory(
                     report_id=r3.id,
@@ -191,19 +193,27 @@ def seed_data():
                     new_status="Resolved",
                     remarks="Gaskets replaced. Seepage successfully arrested and double-checked.",
                     changed_by=admin_u.id,
-                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=2)
-                )
+                    changed_at=datetime.datetime.utcnow() - datetime.timedelta(days=2),
+                ),
             ]
             db.add_all(histories)
-            
+
             # 5. Seed Peer Verifications
             verifications = [
-                Verification(report_id=r1.id, user_id=c2.id, verified_at=datetime.datetime.utcnow() - datetime.timedelta(days=1, hours=20)),
-                Verification(report_id=r3.id, user_id=c1.id, verified_at=datetime.datetime.utcnow() - datetime.timedelta(days=3, hours=10)),
+                Verification(
+                    report_id=r1.id,
+                    user_id=c2.id,
+                    verified_at=datetime.datetime.utcnow() - datetime.timedelta(days=1, hours=20),
+                ),
+                Verification(
+                    report_id=r3.id,
+                    user_id=c1.id,
+                    verified_at=datetime.datetime.utcnow() - datetime.timedelta(days=3, hours=10),
+                ),
             ]
             db.add_all(verifications)
             db.commit()
-            
+
             print("Seeded database with sample Hyderabad leak reports, verifications, and histories.")
     except Exception as e:
         print(f"Error during seeding: {e}")

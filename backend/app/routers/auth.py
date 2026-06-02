@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app import models, schemas, auth
+
+from app import auth, models, schemas
 from app.database import get_db
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
 
 @router.post("/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -12,22 +14,19 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
     if db_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered. Please login instead."
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered. Please login instead."
         )
-    
+
     # Hash password and create citizen/admin user
     hashed_pwd = auth.get_password_hash(user_in.password)
     new_user = models.User(
-        name=user_in.name,
-        email=user_in.email,
-        password_hash=hashed_pwd,
-        role=user_in.role or "citizen"
+        name=user_in.name, email=user_in.email, password_hash=hashed_pwd, role=user_in.role or "citizen"
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
+
 
 @router.post("/login", response_model=schemas.Token)
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
@@ -41,10 +40,11 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Generate token containing id and role claims
     access_token = auth.create_access_token(data={"sub": str(user.id), "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/login-swagger", response_model=schemas.Token, include_in_schema=False)
 def login_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -60,6 +60,7 @@ def login_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session 
         )
     access_token = auth.create_access_token(data={"sub": str(user.id), "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.get("/me", response_model=schemas.UserOut)
 def read_current_user_profile(current_user: models.User = Depends(auth.get_current_user)):
