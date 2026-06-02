@@ -106,7 +106,9 @@ pytest-coverage:
 # =========================================================================
 secret_scan:
   stage: security
-  image: zricethezav/gitleaks:latest
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
   script:
     - gitleaks detect --source . --verbose --no-git || echo "Secret scan completed"
 
