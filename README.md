@@ -1,3 +1,13 @@
+---
+title: JalRakshak
+emoji: 💧
+colorFrom: blue
+colorTo: cyan
+sdk: docker
+app_port: 7860
+license: agpl-3.0
+---
+
 # 💧 JalRakshak – Smart Water Leak Reporting System
 
 **JalRakshak** is a state-of-the-art CivicTech full-stack web application designed for the Hyderabad and Telangana Metropolitan division. It empowers citizens to easily report public water leakages using photos and browser Geolocation APIs, while providing city authorities (like HMWS&SB) with an advanced analytics portal to review, prioritize, verify, and resolve leakage tickets.
