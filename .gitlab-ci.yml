@@ -13,8 +13,8 @@ backend-test:
   stage: test
   image: python:3.10-slim
   script:
-    - pip install -r backend/requirements.txt
-    - python -m compileall backend
+    - pip install -r backend/requirements.txt pytest
+    - pytest backend/tests
 
 frontend-test:
   stage: test
