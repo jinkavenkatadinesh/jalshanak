@@ -8,6 +8,24 @@ if not hasattr(bcrypt, "__about__"):
         __version__ = bcrypt.__version__
     bcrypt.__about__ = BcryptAbout()
 
+# Patch bcrypt.hashpw and checkpw to avoid 72-byte limit ValueErrors in newer bcrypt versions
+original_hashpw = bcrypt.hashpw
+def patched_hashpw(password, salt):
+    password_bytes = password.encode("utf-8") if isinstance(password, str) else password
+    if len(password_bytes) > 72:
+        password_bytes = password_bytes[:72]
+    return original_hashpw(password_bytes, salt)
+bcrypt.hashpw = patched_hashpw
+
+if hasattr(bcrypt, "checkpw"):
+    original_checkpw = bcrypt.checkpw
+    def patched_checkpw(password, hashed):
+        password_bytes = password.encode("utf-8") if isinstance(password, str) else password
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+        return original_checkpw(password_bytes, hashed)
+    bcrypt.checkpw = patched_checkpw
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
