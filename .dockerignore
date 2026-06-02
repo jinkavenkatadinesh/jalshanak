@@ -1,0 +1,16 @@
+**/node_modules/
+**/dist/
+**/.venv/
+**/venv/
+**/*.db
+**/*.log
+**/.git/
+**/.github/
+**/.gitlab-ci.yml
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
