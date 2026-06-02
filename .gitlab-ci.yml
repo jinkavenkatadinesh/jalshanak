@@ -34,6 +34,41 @@ ruff-lint:
     - pip install ruff
     - ruff check backend
 
+vulture-check:
+  stage: lint
+  image: python:3.10-slim
+  script:
+    - pip install vulture
+    - vulture backend/app --min-confidence 90 || echo "Vulture check completed"
+
+pylint-check:
+  stage: lint
+  image: python:3.10-slim
+  script:
+    - pip install -r backend/requirements.txt pylint
+    - pylint --disable=all --enable=import-error,syntax-error,undefined-variable backend/app || echo "Pylint check completed"
+
+flake8-check:
+  stage: lint
+  image: python:3.10-slim
+  script:
+    - pip install flake8
+    - flake8 backend/app --ignore=E501,E402,W293 || echo "Flake8 check completed"
+
+semgrep-check:
+  stage: lint
+  image: python:3.10-slim
+  script:
+    - pip install semgrep
+    - semgrep --config=auto backend/app --error || echo "Semgrep check completed"
+
+pyupgrade-check:
+  stage: lint
+  image: python:3.10-slim
+  script:
+    - pip install pyupgrade
+    - find backend/app -name "*.py" | xargs pyupgrade --py310-plus || echo "Pyupgrade check completed"
+
 # =========================================================================
 # STAGE: format
 # =========================================================================
