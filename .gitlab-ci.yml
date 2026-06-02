@@ -78,7 +78,12 @@ deploy:
     - eval $(ssh-agent -s)
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - echo "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
+    - |
+      if [ -f "$VPS_SSH_PRIVATE_KEY" ]; then
+        cat "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
+      else
+        echo "$VPS_SSH_PRIVATE_KEY" | awk '{gsub(/\\n/,"\n"); print}' | tr -d '\r' > ~/.ssh/id_rsa
+      fi
     - echo "" >> ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-add ~/.ssh/id_rsa
