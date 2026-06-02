@@ -16,4 +16,4 @@ COPY backend/ ./backend/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 7860
-CMD ["sh", "-c", "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+CMD ["sh", "-c", "PYTHONPATH=backend python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
